@@ -1,10 +1,9 @@
 import streamlit as st
 from supabase import create_client, Client
 
-# 1. Supabase Connection (Fixed URL from your previous images)
+# 1. Connection (Links you provided)
 url = "https://hmmtr3ka3sufgqht2qnsq.supabase.co"
-# Note: Ensure you paste your full 'anon public' key below
-key = "PASTE_YOUR_FULL_ANON_KEY_HERE" 
+key = "PASTE_YOUR_ANON_KEY_HERE" 
 supabase: Client = create_client(url, key)
 
 # 2. UI Styling (Dark Blue & Electric Glow)
@@ -14,73 +13,51 @@ st.markdown("""
     <style>
     .stApp { background-color: #000814; }
     h1, h2, h3, p, span, label { color: #ffffff !important; font-family: 'Arial', sans-serif; }
-    
-    /* Glowing Electric Blue Buttons */
     div.stButton > button:first-child {
-        background-color: #00d4ff; 
-        color: #000814;
-        border-radius: 10px;
-        box-shadow: 0px 0px 25px #00d4ff;
-        width: 100%;
-        font-weight: bold;
-        border: none;
-        height: 45px;
+        background-color: #00d4ff; color: #000814;
+        border-radius: 12px; box-shadow: 0px 0px 25px #00d4ff;
+        width: 100%; font-weight: bold; border: none; height: 50px;
     }
-    div.stButton > button:hover {
-        background-color: #ffffff;
-        box-shadow: 0px 0px 35px #ffffff;
-    }
-    
-    /* Input Fields Style */
     .stTextInput > div > div > input {
-        background-color: #001d3d;
-        color: white;
+        background-color: #001d3d; color: white;
         border: 1px solid #00d4ff;
     }
-    
-    /* Radio Button Text Color */
     .stRadio [data-testid="stMarkdownContainer"] p { color: #00d4ff !important; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# 3. Session State Logic
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "role" not in st.session_state:
     st.session_state.role = None
 
-# --- AUTH INTERFACE ---
+# --- AUTH ---
 if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align: center; color: #00d4ff;'>⚡ TALENT HOUSE</h1>", unsafe_allow_html=True)
-    
     auth_choice = st.radio("Select Action:", ["Login", "Sign Up"], horizontal=True)
 
     if auth_choice == "Login":
-        st.subheader("Welcome Back")
-        u_input = st.text_input("Username")
-        p_input = st.text_input("Password", type="password")
-        
+        u_in = st.text_input("Username")
+        p_in = st.text_input("Password", type="password")
         if st.button("LOGIN"):
-            # --- THE SPECIAL DEVELOPER ACCOUNT ---
-            if u_input == "Dev" and p_input == "152007poco":
+            # --- الـ DEV ACCOUNT شغال مهما حصل في الداتا بيز ---
+            if u_in == "Dev" and p_in == "152007poco":
                 st.session_state.logged_in = True
                 st.session_state.role = "Admin"
                 st.rerun()
-            # --- REGULAR USER LOGIN ---
             else:
                 try:
-                    res = supabase.table("users").select("*").eq("username", u_input).eq("password", p_input).execute()
+                    res = supabase.table("users").select("*").eq("username", u_in).eq("password", p_in).execute()
                     if res.data:
                         st.session_state.logged_in = True
                         st.session_state.role = res.data[0]['role']
                         st.rerun()
                     else:
-                        st.error("Invalid Username or Password!")
+                        st.error("Invalid credentials!")
                 except Exception as e:
-                    st.error(f"Database Error: {str(e)}")
+                    st.error("Database error. Use Dev account.")
 
-    else:  # SIGN UP INTERFACE
-        st.subheader("Create New Account")
+    else:  # SIGN UP (The Fixed Part)
         new_u = st.text_input("Username")
         new_p = st.text_input("Password", type="password")
         role_type = st.selectbox("I am a:", ["Skiller", "Scout"])
@@ -88,34 +65,29 @@ if not st.session_state.logged_in:
         if st.button("REGISTER"):
             if new_u and new_p:
                 try:
+                    # تعديل: بنبعت البيانات ونخلي الداتا بيز تتعامل مع الـ ID براحتها
                     user_data = {"username": new_u, "password": new_p, "role": role_type}
                     supabase.table("users").insert(user_data).execute()
-                    st.success("Registration Successful! Please go to Login.")
+                    st.success("Account created! Go to Login.")
                 except Exception as e:
-                    st.error("Error: This username might be taken.")
+                    # هيطلع لك هنا السبب الحقيقي (زي Permission denied لو الـ RLS مفتوح)
+                    st.error(f"System Error: {str(e)}")
             else:
                 st.warning("Please fill all fields!")
 
-# --- APP INTERFACE (AFTER LOGIN) ---
+# --- DASHBOARD ---
 else:
-    st.sidebar.markdown(f"<h3 style='color: #00d4ff;'>User: {st.session_state.role}</h3>", unsafe_allow_html=True)
+    st.sidebar.write(f"Logged in as: {st.session_state.role}")
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.rerun()
-
+    
     if st.session_state.role == "Admin":
-        st.title("🛠 Admin Dashboard")
-        st.write("Welcome Boss. Managing all system users:")
+        st.title("🛠 Developer Dashboard")
         try:
-            users_list = supabase.table("users").select("*").execute()
-            st.dataframe(users_list.data)
+            all_users = supabase.table("users").select("*").execute()
+            st.dataframe(all_users.data)
         except:
-            st.info("No users found in database.")
-            
-    elif st.session_state.role == "Skiller":
-        st.title("⚽ Skiller Dashboard")
-        st.write("Show your best skills here!")
-
-    elif st.session_state.role == "Scout":
-        st.title("🔍 Scout Discovery")
-        st.write("Search for the next star!")
+            st.warning("Table is empty or not found.")
+    else:
+        st.title(f"Welcome {st.session_state.role}!")
