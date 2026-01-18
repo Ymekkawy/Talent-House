@@ -1,12 +1,12 @@
 import streamlit as st
 from supabase import create_client, Client
 
-# 1. Supabase Connection (Ensure your URL and Key are here)
+# 1. Supabase Connection (IMPORTANT: Put your real URL and Key here)
 url = "https://your-project-url.supabase.co"
 key = "your-anon-key-from-image"
 supabase: Client = create_client(url, key)
 
-# 2. Page Config & Custom CSS (Dark Blue & Electric Glow)
+# 2. Page Config & Electric Style
 st.set_page_config(page_title="Talent House", layout="centered")
 
 st.markdown("""
@@ -14,7 +14,7 @@ st.markdown("""
     .stApp { background-color: #000814; }
     h1, h2, h3, p, span, label { color: #ffffff !important; font-family: 'Arial', sans-serif; }
     
-    /* Electric Blue Glowing Buttons */
+    /* Glowing Electric Blue Buttons */
     div.stButton > button:first-child {
         background-color: #00d4ff; 
         color: #000814;
@@ -23,21 +23,17 @@ st.markdown("""
         font-weight: bold;
         box-shadow: 0px 0px 20px #00d4ff;
         width: 100%;
-        transition: 0.3s;
-    }
-    div.stButton > button:hover {
-        background-color: #ffffff;
-        box-shadow: 0px 0px 30px #ffffff;
     }
     
-    /* Input Fields Style */
+    /* Input Fields */
     .stTextInput > div > div > input {
         background-color: #001d3d;
         color: white;
         border: 1px solid #00d4ff;
     }
-    /* Radio Button & Selectbox color fix */
-    .stRadio [data-testid="stMarkdownContainer"] p { color: #00d4ff !important; font-weight: bold; }
+    
+    /* Radio/Selectbox Label Color */
+    .stRadio [data-testid="stMarkdownContainer"] p { color: #00d4ff !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -45,75 +41,76 @@ st.markdown("""
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-# --- Auth Interface (Login / Sign Up) ---
+# --- Auth Interface ---
 if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align: center; color: #00d4ff;'>⚡ TALENT HOUSE</h1>", unsafe_allow_html=True)
     
-    # Selection Tab
-    choice = st.radio("Select Action:", ["Login", "Sign Up"], horizontal=True)
+    auth_choice = st.radio("Select Action:", ["Login", "Sign Up"], horizontal=True)
 
-    if choice == "Login":
+    if auth_choice == "Login":
         st.subheader("Welcome Back")
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
+        user_input = st.text_input("Username")
+        pass_input = st.text_input("Password", type="password")
         
         if st.button("LOGIN"):
-            # Developer Account
-            if username == "Dev" and password == "152007poco":
+            # --- THE SPECIAL DEVELOPER ACCOUNT ---
+            if user_input == "Dev" and pass_input == "152007poco":
                 st.session_state.logged_in = True
                 st.session_state.role = "Admin"
+                st.success("Welcome, Developer!")
                 st.rerun()
+            # --------------------------------------
             else:
                 try:
-                    response = supabase.table("users").select("*").eq("username", username).eq("password", password).execute()
+                    response = supabase.table("users").select("*").eq("username", user_input).eq("password", pass_input).execute()
                     if len(response.data) > 0:
                         st.session_state.logged_in = True
                         st.session_state.role = response.data[0]['role']
                         st.rerun()
                     else:
-                        st.error("Invalid Username or Password!")
+                        st.error("Wrong username or password!")
                 except:
-                    st.error("Connection Error. Check your Database.")
+                    st.error("Database connection error.")
 
-    else:  # Sign Up Interface
+    else:  # Sign Up
         st.subheader("Create New Account")
-        new_user = st.text_input("Choose Username")
-        new_pass = st.text_input("Choose Password", type="password")
-        # Custom roles: Scout or Skiller
-        role = st.selectbox("I am a:", ["Skiller", "Scout"])
+        new_user = st.text_input("Username")
+        new_pass = st.text_input("Password", type="password")
+        # Roles: Skiller or Scout
+        role_choice = st.selectbox("Register as:", ["Skiller", "Scout"])
         
         if st.button("REGISTER"):
             if new_user and new_pass:
-                data = {"username": new_user, "password": new_pass, "role": role}
                 try:
+                    data = {"username": new_user, "password": new_pass, "role": role_choice}
                     supabase.table("users").insert(data).execute()
-                    st.success("Account created successfully! Please Login.")
+                    st.success("Account created! Go to Login.")
                 except:
-                    st.error("Username already exists or Database error.")
+                    st.error("Error creating account.")
             else:
-                st.warning("Please fill all fields!")
+                st.warning("Please fill all fields.")
 
-# --- Main App Interface ---
+# --- App Interface (After Login) ---
 else:
-    st.sidebar.markdown(f"<h2 style='color: #00d4ff;'>Hello, {st.session_state.role}</h2>", unsafe_allow_html=True)
+    st.sidebar.markdown(f"<h3 style='color: #00d4ff;'>User: {st.session_state.role}</h3>", unsafe_allow_html=True)
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.rerun()
 
     if st.session_state.role == "Admin":
-        st.markdown("<h1 style='color: #00d4ff;'>🛠 Admin Dashboard</h1>", unsafe_allow_html=True)
-        st.write("Developer Mode: Full access granted.")
-        # Displaying users
+        st.title("🛠 Developer Dashboard")
+        st.write("You have full control over the database.")
+        # View All Users
         try:
-            users = supabase.table("users").select("*").execute()
-            st.dataframe(users.data)
+            users_list = supabase.table("users").select("*").execute()
+            st.dataframe(users_list.data)
         except:
-            st.info("No data found in 'users' table.")
-    
+            st.info("No users found.")
+            
     elif st.session_state.role == "Skiller":
-        st.title("⚽ Skiller Dashboard")
-        st.write("Showcase your skills and get noticed!")
+        st.title("⚽ Skiller Area")
+        st.write("Welcome, Skiller! Start uploading your skills.")
 
     elif st.session_state.role == "Scout":
-        st.title("🔍 Scout Dashboard")
-        st.write("Find the best talents in the house.")
+        st.title("🔍 Scout Area")
+        st.write("Welcome, Scout! Search for the best talent.")
