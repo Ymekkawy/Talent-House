@@ -1,48 +1,58 @@
 import streamlit as st
 from supabase import create_client, Client
 
-# --- ضبط الرابط والـ Key بدون مسافات ---
-# تأكد يدويًا أن الرابط يبدأ بـ https:// ولا يوجد مسافة في آخره
-SUPABASE_URL = "https://hmmtr3ka3sufgqht2qnsq.supabase.co".strip()
-SUPABASE_KEY = "حط_هنا_الـ_key_بتاعك_بالكامل".strip()
+# 1. Database Connection (Ensure URL and Key are correct)
+URL = "https://hmmtr3ka3sufgqht2qnsq.supabase.co".strip()
+KEY = "YOUR_ANON_KEY_HERE".strip() # ضع هنا الـ Anon Key الخاص بك
+supabase: Client = create_client(URL, KEY)
 
-# إنشاء الاتصال مع صيد الخطأ فوراً
-try:
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-except Exception as e:
-    st.error(f"Critical Connection Error: {e}")
-
-# --- واجهة المستخدم ---
+# 2. UI Customization (Dark Blue & Electric Glow)
 st.set_page_config(page_title="TALENT HOUSE", layout="centered")
 
 st.markdown("""
     <style>
     .stApp { background-color: #000814; }
-    h1, h2, h3, p, span, label { color: #ffffff !important; }
+    h1, h2, h3, p, span, label { color: #ffffff !important; font-family: 'Arial', sans-serif; }
+    
+    /* Electric Blue Glowing Buttons */
     div.stButton > button:first-child {
-        background-color: #00d4ff; color: #000814;
-        border-radius: 12px; box-shadow: 0px 0px 25px #00d4ff;
-        width: 100%; font-weight: bold; height: 50px;
+        background-color: #00d4ff; 
+        color: #000814;
+        border-radius: 12px;
+        box-shadow: 0px 0px 25px #00d4ff;
+        width: 100%;
+        font-weight: bold;
+        border: none;
+        height: 50px;
     }
+    div.stButton > button:hover {
+        background-color: #ffffff;
+        box-shadow: 0px 0px 35px #ffffff;
+    }
+    
+    /* Dark Input Fields */
     .stTextInput > div > div > input {
-        background-color: #001d3d; color: white; border: 1px solid #00d4ff;
+        background-color: #001d3d;
+        color: white;
+        border: 1px solid #00d4ff;
     }
     </style>
     """, unsafe_allow_html=True)
 
+# 3. Logic & Auth
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-# --- النظام ---
 if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align: center; color: #00d4ff;'>⚡ TALENT HOUSE</h1>", unsafe_allow_html=True)
-    mode = st.radio("Action:", ["Login", "Sign Up"], horizontal=True)
+    mode = st.radio("Select Action:", ["Login", "Sign Up"], horizontal=True)
 
     if mode == "Login":
         u = st.text_input("Username")
         p = st.text_input("Password", type="password")
+        
         if st.button("LOGIN"):
-            # الحساب المميز (Dev) يدخل فوراً مهما كانت حالة الشبكة
+            # Developer Account (Manual Check)
             if u == "Dev" and p == "152007poco":
                 st.session_state.logged_in = True
                 st.session_state.role = "Admin"
@@ -54,25 +64,42 @@ if not st.session_state.logged_in:
                         st.session_state.logged_in = True
                         st.session_state.role = res.data[0]['role']
                         st.rerun()
-                    else: st.error("Wrong credentials")
+                    else:
+                        st.error("Invalid Username or Password")
                 except Exception as e:
-                    st.error(f"Connection Failed: {e}")
+                    st.error("Connection failed. Please use Developer login.")
 
-    else:
+    else:  # Sign Up
         nu = st.text_input("New Username")
         np = st.text_input("New Password", type="password")
-        nr = st.selectbox("Role:", ["Skiller", "Scout"])
+        nr = st.selectbox("Register as:", ["Skiller", "Scout"])
+        
         if st.button("REGISTER"):
             if nu and np:
                 try:
-                    # نرسل فقط البيانات الأساسية ونترك الـ ID للقاعدة
-                    supabase.table("users").insert({"username": nu, "password": np, "role": nr}).execute()
-                    st.success("Account created! Go to Login.")
+                    # Preventing ASCII errors by ensuring clean input
+                    user_data = {"username": str(nu), "password": str(np), "role": str(nr)}
+                    supabase.table("users").insert(user_data).execute()
+                    st.success("Account created! Now go to Login.")
                 except Exception as e:
-                    # لو ظهر Errno -2 هنا، يبقى الرابط اللي نسخته في الكود "مكتوب غلط"
-                    st.error(f"System Check: {e}")
+                    st.error(f"Error: {str(e)}")
+            else:
+                st.warning("Please fill all fields")
+
+# 4. Dashboard
 else:
-    st.title(f"Welcome {st.session_state.role}")
+    st.sidebar.write(f"Logged in as: {st.session_state.role}")
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.rerun()
+
+    if st.session_state.role == "Admin":
+        st.title("🛠 Developer Dashboard")
+        try:
+            data = supabase.table("users").select("*").execute()
+            st.dataframe(data.data)
+        except:
+            st.info("Database table is empty.")
+    else:
+        st.title(f"Welcome {st.session_state.role}!")
+        st.write("Your specialized dashboard is coming soon.")
